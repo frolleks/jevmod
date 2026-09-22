@@ -1,5 +1,7 @@
 # Soter (Σωτήρ)
 
+[Discord server](https://discord.gg/xURTvZUANp)
+
 Soter is an automated Discord moderation bot, powered by Jev.
 
 Soter moderates mostly on its own: every message is scanned for hate speech

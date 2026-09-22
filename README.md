@@ -7,7 +7,7 @@ and spam, and repeat violators are timed out automatically. There are no
 manual mod commands — use Discord's own kick/ban/timeout for that. The
 commands below are just for configuring the automation.
 
-[Add this bot to your server!](https://discord.com/oauth2/authorize?client_id=1551459097826693130&permissions=201403398&integration_type=0&scope=bot)
+[Add this bot to your server!](https://discord.com/oauth2/authorize?client_id=1551459097826693130&permissions=201403398&integration_type=0&scope=bot) **_(warning: the bot is still in early development and is not on 24/7. data may be deleted any time)_**
 
 ## Local setup
 

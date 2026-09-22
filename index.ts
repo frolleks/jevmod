@@ -8,7 +8,7 @@ import {
   setTimeoutConfig,
   upsertSetting,
 } from "./utils/db";
-import { settingsCommand } from "./utils/commands";
+import { buildHelpText, helpCommand, settingsCommand } from "./utils/commands";
 import { judge } from "./utils/jev";
 import { pushHistory } from "./utils/history";
 import { logToMod, recordViolation } from "./utils/moderation";
@@ -25,6 +25,7 @@ client.once(Events.ClientReady, async (c) => {
   // ponytail: global command sync on every boot; move to a deploy script if it hits rate limits
   await c.application.commands.set([
     { name: "ping", description: "Pong" },
+    helpCommand.toJSON(),
     settingsCommand.toJSON(),
   ]);
   console.log(`Logged in as ${c.user.tag}`);
@@ -40,6 +41,8 @@ client.on(Events.InteractionCreate, async (i) => {
   if (!i.isChatInputCommand()) return;
 
   if (i.commandName === "ping") return void (await i.reply("Pong"));
+
+  if (i.commandName === "help") return void (await i.reply({ content: buildHelpText(), ephemeral: true }));
 
   if (i.commandName === "settings" && i.inGuild()) {
     const channel = i.options.getChannel("channel");

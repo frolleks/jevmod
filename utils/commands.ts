@@ -1,4 +1,4 @@
-import { ChannelType, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import { ApplicationCommandOptionType, ChannelType, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
 
 export const settingsCommand = new SlashCommandBuilder()
   .setName("settings")
@@ -42,3 +42,16 @@ export const settingsCommand = new SlashCommandBuilder()
       .addIntegerOption((o) => o.setName("threshold").setDescription("Violations before timeout").setMinValue(1).setRequired(true))
       .addIntegerOption((o) => o.setName("minutes").setDescription("Timeout duration in minutes").setMinValue(1).setRequired(true)),
   );
+
+export const helpCommand = new SlashCommandBuilder().setName("help").setDescription("List available commands");
+
+// built from settingsCommand's own definition, so the two can't drift out of sync
+export function buildHelpText(): string {
+  const lines = ["**/ping** — Pong", "", `**/settings** — ${settingsCommand.toJSON().description}`];
+  for (const sub of settingsCommand.toJSON().options ?? []) {
+    if (sub.type !== ApplicationCommandOptionType.Subcommand) continue;
+    const args = (sub.options ?? []).map((o) => `<${o.name}>`).join(" ");
+    lines.push(`\`/settings ${sub.name}${args ? ` ${args}` : ""}\` — ${sub.description}`);
+  }
+  return lines.join("\n");
+}

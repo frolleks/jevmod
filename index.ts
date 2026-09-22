@@ -1,14 +1,17 @@
-import { Database } from "bun:sqlite";
+import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import {
-  ActivityType,
-  ChannelType,
-  Client,
-  Events,
-  GatewayIntentBits,
-  PermissionFlagsBits,
-  SlashCommandBuilder,
-} from "discord.js";
-import { OpenRouter } from "@openrouter/sdk";
+  addExempt,
+  getSettings,
+  isChannelExempt,
+  listExempt,
+  removeExempt,
+  setTimeoutConfig,
+  upsertSetting,
+} from "./utils/db";
+import { settingsCommand } from "./utils/commands";
+import { judge } from "./utils/jev";
+import { pushHistory } from "./utils/history";
+import { logToMod, recordViolation } from "./utils/moderation";
 
 const client = new Client({
   intents: [
@@ -17,82 +20,18 @@ const client = new Client({
     GatewayIntentBits.MessageContent, // privileged: enable in the Developer Portal
   ],
 });
-const openrouter = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
-
-const HATE_THRESHOLD = 0.8;
-
-const db = new Database("bot.sqlite");
-db.run(
-  "CREATE TABLE IF NOT EXISTS exempt_channels (guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, PRIMARY KEY (guild_id, channel_id))",
-);
-const isExempt = db.query(
-  "SELECT 1 FROM exempt_channels WHERE guild_id = ? AND channel_id = ?",
-);
-
-const settingsCommand = new SlashCommandBuilder()
-  .setName("settings")
-  .setDescription("Configure the moderation bot")
-  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-  .addSubcommand((sc) =>
-    sc
-      .setName("exempt-add")
-      .setDescription("Stop scanning a channel for hate speech")
-      .addChannelOption((o) =>
-        o
-          .setName("channel")
-          .setDescription("Channel to exempt")
-          .addChannelTypes(ChannelType.GuildText)
-          .setRequired(true),
-      ),
-  )
-  .addSubcommand((sc) =>
-    sc
-      .setName("exempt-remove")
-      .setDescription("Resume scanning a channel")
-      .addChannelOption((o) =>
-        o
-          .setName("channel")
-          .setDescription("Channel to un-exempt")
-          .addChannelTypes(ChannelType.GuildText)
-          .setRequired(true),
-      ),
-  )
-  .addSubcommand((sc) =>
-    sc.setName("exempt-list").setDescription("List channels exempt from scanning"),
-  );
-
-async function isHateSpeech(text: string) {
-  const { answers } = await openrouter.alpha.decisions.create({
-    decisionsRequest: {
-      model: "typesafe/jev-1.13",
-      state: text,
-      questions: {
-        is_hate_speech: {
-          type: "noul",
-          instructions: "Is this message hate speech?",
-          criteria: {
-            true: "Attacks or demeans people for race, religion, ethnicity, gender, sexuality, disability or similar",
-            false: "No hate speech",
-          },
-        },
-      },
-    },
-  });
-  const a = answers.is_hate_speech;
-  return a?.type === "noul" && a.noul > HATE_THRESHOLD;
-}
 
 client.once(Events.ClientReady, async (c) => {
   // ponytail: global command sync on every boot; move to a deploy script if it hits rate limits
-  await c.application.commands.set([{ name: "ping", description: "Pong" }, settingsCommand.toJSON()]);
+  await c.application.commands.set([
+    { name: "ping", description: "Pong" },
+    settingsCommand.toJSON(),
+  ]);
   console.log(`Logged in as ${c.user.tag}`);
 
   c.user.setPresence({
     activities: [
-      {
-        name: "Watching and moderating",
-        type: ActivityType.Watching,
-      },
+      { name: "Watching and moderating", type: ActivityType.Watching },
     ],
   });
 });
@@ -106,30 +45,83 @@ client.on(Events.InteractionCreate, async (i) => {
     const channel = i.options.getChannel("channel");
     const sub = i.options.getSubcommand();
     if (sub === "exempt-add" && channel) {
-      db.run("INSERT OR IGNORE INTO exempt_channels VALUES (?, ?)", [i.guildId, channel.id]);
-      await i.reply({ content: `${channel} is now exempt from scanning.`, ephemeral: true });
+      addExempt(i.guildId, channel.id);
+      await i.reply({
+        content: `${channel} is now exempt from scanning.`,
+        ephemeral: true,
+      });
     } else if (sub === "exempt-remove" && channel) {
-      db.run("DELETE FROM exempt_channels WHERE guild_id = ? AND channel_id = ?", [i.guildId, channel.id]);
-      await i.reply({ content: `${channel} is no longer exempt.`, ephemeral: true });
+      removeExempt(i.guildId, channel.id);
+      await i.reply({
+        content: `${channel} is no longer exempt.`,
+        ephemeral: true,
+      });
     } else if (sub === "exempt-list") {
-      const rows = db
-        .query("SELECT channel_id FROM exempt_channels WHERE guild_id = ?")
-        .all(i.guildId) as { channel_id: string }[];
-      const list = rows.length ? rows.map((r) => `<#${r.channel_id}>`).join(", ") : "None";
+      const ids = listExempt(i.guildId);
+      const list = ids.length ? ids.map((id) => `<#${id}>`).join(", ") : "None";
       await i.reply({ content: `Exempt channels: ${list}`, ephemeral: true });
+    } else if (sub === "hate-speech") {
+      const enabled = i.options.getBoolean("enabled", true);
+      upsertSetting(i.guildId, "hate_speech_enabled", enabled ? 1 : 0);
+      await i.reply({
+        content: `Hate speech filter ${enabled ? "enabled" : "disabled"}.`,
+        ephemeral: true,
+      });
+    } else if (sub === "mod-log-channel" && channel) {
+      upsertSetting(i.guildId, "mod_log_channel_id", channel.id);
+      await i.reply({
+        content: `Moderation log channel set to ${channel}.`,
+        ephemeral: true,
+      });
+    } else if (sub === "timeout-config") {
+      const threshold = i.options.getInteger("threshold", true);
+      const minutes = i.options.getInteger("minutes", true);
+      setTimeoutConfig(i.guildId, threshold, minutes);
+      await i.reply({
+        content: `Auto-timeout: ${threshold} violations → ${minutes}m timeout.`,
+        ephemeral: true,
+      });
     }
   }
 });
 
 client.on(Events.MessageCreate, async (m) => {
   if (m.author.bot || !m.content || !m.inGuild()) return;
-  if (isExempt.get(m.guildId, m.channelId)) return;
+  if (isChannelExempt(m.guildId, m.channelId)) return;
+
+  const settings = getSettings(m.guildId);
+  const history = pushHistory(`${m.guildId}:${m.author.id}`, m.content);
+
   try {
-    if (!(await isHateSpeech(m.content))) return;
-    await m.delete();
-    await m.author
-      .send("Your message was removed because it was flagged as hate speech.")
-      .catch(() => {}); // DMs may be closed
+    const { isHate, spamLevel } = await judge({
+      message: m.content,
+      account_created_at: m.author.createdAt.toISOString(),
+      guild_joined_at: m.member?.joinedAt?.toISOString() ?? null,
+      recent_messages: history.map((h) => h.content),
+    });
+
+    if (settings.hate_speech_enabled && isHate) {
+      await m.delete();
+      await m.author
+        .send("Your message was removed because it was flagged as hate speech.")
+        .catch(() => {}); // DMs may be closed
+      if (m.member) await recordViolation(m.member, "hate speech");
+    } else if (spamLevel === "high_spam") {
+      await m.delete();
+      await m.author
+        .send("Your message was removed because it was flagged as spam.")
+        .catch(() => {});
+      await logToMod(
+        m.guild,
+        `High-confidence spam deleted from ${m.author} in ${m.channel}: ${m.content}`,
+      );
+      if (m.member) await recordViolation(m.member, "spam");
+    } else if (spamLevel === "medium_spam") {
+      await logToMod(
+        m.guild,
+        `Possible spam from ${m.author} in ${m.channel}: ${m.content}`,
+      );
+    }
   } catch (e) {
     console.error("moderation failed", e); // fail open: a scan error never blocks chat
   }

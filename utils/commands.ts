@@ -47,7 +47,13 @@ export const helpCommand = new SlashCommandBuilder().setName("help").setDescript
 
 // built from settingsCommand's own definition, so the two can't drift out of sync
 export function buildHelpText(): string {
-  const lines = ["**/ping** — Pong", "", `**/settings** — ${settingsCommand.toJSON().description}`];
+  const lines = [
+    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, and repeat violators are timed out automatically. There are no manual mod commands — use Discord's own kick/ban/timeout for that. The commands below are just for configuring the automation.",
+    "",
+    "**/ping** — Pong",
+    "",
+    `**/settings** — ${settingsCommand.toJSON().description}`,
+  ];
   for (const sub of settingsCommand.toJSON().options ?? []) {
     if (sub.type !== ApplicationCommandOptionType.Subcommand) continue;
     const args = (sub.options ?? []).map((o) => `<${o.name}>`).join(" ");

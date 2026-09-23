@@ -42,10 +42,11 @@ export async function judge(state: {
   const hate = answers.is_hate_speech;
   const spam = answers.spam_level;
   const hateScore = hate?.type === "noul" ? hate.noul : 0;
+  const hateLevel: "none" | "review" | "remove" =
+    hateScore > HATE_REMOVE_THRESHOLD ? "remove" : hateScore > HATE_REVIEW_THRESHOLD ? "review" : "none";
   return {
     hateScore,
-    hateLevel:
-      hateScore > HATE_REMOVE_THRESHOLD ? "remove" : hateScore > HATE_REVIEW_THRESHOLD ? "review" : "none",
+    hateLevel,
     spamLevel: spam?.type === "choice" ? spam.choice : "no_spam",
     // probability of the chosen level, comparable to hateScore; null if the API omits the distribution
     spamScore: spam?.type === "choice" ? (spam.probabilities?.[spam.choice] ?? null) : null,

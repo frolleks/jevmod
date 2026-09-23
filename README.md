@@ -28,6 +28,12 @@ Content** intent for the bot in the Discord Developer Portal.
 
 Run the tests with `bun test`.
 
+To check how Jev's calls hold up without any users, run `bun run eval [n]`
+(default 100). It sends a sample of [HateCheck](https://huggingface.co/datasets/Paul/hatecheck)
+cases and a few spam scenarios through the same judgment the bot uses, then reports
+false removals, missed hate speech, and how different confidence thresholds would
+perform. It costs one Jev call per case.
+
 ## Commands
 
 - `/ping` — Pong. (will remove in the future)

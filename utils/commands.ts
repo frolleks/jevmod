@@ -1,4 +1,10 @@
-import { ApplicationCommandOptionType, ChannelType, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
+import {
+  ApplicationCommandOptionType,
+  ChannelType,
+  InteractionContextType,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} from "discord.js";
 
 export const settingsCommand = new SlashCommandBuilder()
   .setName("settings")
@@ -30,7 +36,7 @@ export const settingsCommand = new SlashCommandBuilder()
   .addSubcommand((sc) =>
     sc
       .setName("mod-log-channel")
-      .setDescription("Set the channel spam flags are logged to")
+      .setDescription("Set the channel that mod flags, auto-timeouts and new reports are logged to")
       .addChannelOption((o) =>
         o.setName("channel").setDescription("Log channel").addChannelTypes(ChannelType.GuildText).setRequired(true),
       ),
@@ -43,21 +49,47 @@ export const settingsCommand = new SlashCommandBuilder()
       .addIntegerOption((o) => o.setName("minutes").setDescription("Timeout duration in minutes").setMinValue(1).setRequired(true)),
   );
 
+export const reportCommand = new SlashCommandBuilder()
+  .setName("report")
+  .setDescription("Report a member breaking the rules; opens a private ticket with the mods")
+  .setContexts(InteractionContextType.Guild)
+  .addUserOption((o) => o.setName("user").setDescription("Who to report").setRequired(true))
+  .addStringOption((o) =>
+    o
+      .setName("type")
+      .setDescription("What they did")
+      .addChoices({ name: "Hate speech", value: "hate_speech" })
+      .setRequired(true),
+  )
+  .addStringOption((o) =>
+    o.setName("from").setDescription("Check their messages from this date (YYYY-MM-DD, UTC)").setRequired(true),
+  )
+  .addStringOption((o) =>
+    o.setName("to").setDescription("Up to and including this date (YYYY-MM-DD, UTC); defaults to now").setRequired(false),
+  );
+
 export const helpCommand = new SlashCommandBuilder().setName("help").setDescription("List available commands");
 
-// built from settingsCommand's own definition, so the two can't drift out of sync
+function usage(command: string, options: { name: string; required?: boolean }[] = []) {
+  const args = options.map((o) => (o.required ? `<${o.name}>` : `[${o.name}]`));
+  return `\`/${[command, ...args].join(" ")}\``;
+}
+
+// built from the commands' own definitions, so this can't drift out of sync
 export function buildHelpText(): string {
+  const report = reportCommand.toJSON();
+  const settings = settingsCommand.toJSON();
   const lines = [
-    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, and repeat violators are timed out automatically. There are no manual mod commands — use Discord's own kick/ban/timeout for that. The commands below are just for configuring the automation.",
+    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, clear cases are removed, borderline ones are flagged to the mods, and repeat violators are timed out automatically. There are no manual mod commands — use Discord's own kick/ban/timeout for that. Anyone can `/report` a member to open a private ticket with the mods; `/settings` configures the automation.",
     "",
     "**/ping** — Pong",
+    `${usage(report.name, report.options)} — ${report.description}`,
     "",
-    `**/settings** — ${settingsCommand.toJSON().description}`,
+    `**/settings** — ${settings.description}`,
   ];
-  for (const sub of settingsCommand.toJSON().options ?? []) {
+  for (const sub of settings.options ?? []) {
     if (sub.type !== ApplicationCommandOptionType.Subcommand) continue;
-    const args = (sub.options ?? []).map((o) => `<${o.name}>`).join(" ");
-    lines.push(`\`/settings ${sub.name}${args ? ` ${args}` : ""}\` — ${sub.description}`);
+    lines.push(`${usage(`settings ${sub.name}`, sub.options)} — ${sub.description}`);
   }
   return lines.join("\n");
 }

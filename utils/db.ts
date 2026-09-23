@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import type { TranscriptEntry } from "./reports";
 
 export const db = new Database("bot.sqlite");
 db.run(
@@ -16,6 +17,18 @@ db.run(
 db.run(
   "CREATE TABLE IF NOT EXISTS violations (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))",
 );
+// ponytail: rows outlive deleted ticket channels; clean up on ChannelDelete if the db grows
+db.run("CREATE TABLE IF NOT EXISTS report_transcripts (ticket_id TEXT PRIMARY KEY, messages TEXT NOT NULL)");
+
+export function saveTranscript(ticketId: string, entries: TranscriptEntry[]) {
+  db.run("INSERT OR REPLACE INTO report_transcripts VALUES (?, ?)", [ticketId, JSON.stringify(entries)]);
+}
+export function getTranscript(ticketId: string): TranscriptEntry[] | null {
+  const row = db.query("SELECT messages FROM report_transcripts WHERE ticket_id = ?").get(ticketId) as {
+    messages: string;
+  } | null;
+  return row ? JSON.parse(row.messages) : null;
+}
 
 const isExemptQuery = db.query("SELECT 1 FROM exempt_channels WHERE guild_id = ? AND channel_id = ?");
 export function isChannelExempt(guildId: string, channelId: string): boolean {

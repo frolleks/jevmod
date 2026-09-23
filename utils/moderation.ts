@@ -5,7 +5,8 @@ export async function logToMod(guild: Guild, text: string) {
   const { mod_log_channel_id } = getSettings(guild.id);
   if (!mod_log_channel_id) return;
   const channel = guild.channels.cache.get(mod_log_channel_id);
-  if (channel?.isTextBased()) await channel.send(text).catch(() => {});
+  // quoted user content can push past Discord's 2000-char message limit, which would fail the send silently
+  if (channel?.isTextBased()) await channel.send(text.slice(0, 2000)).catch(() => {});
 }
 
 export async function recordViolation(member: GuildMember, reason: string) {

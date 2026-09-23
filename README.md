@@ -5,11 +5,13 @@
 Soter is an automated Discord moderation bot, powered by Jev.
 
 Soter moderates mostly on its own: every message is scanned for hate speech
-and spam, and repeat violators are timed out automatically. There are no
-manual mod commands — use Discord's own kick/ban/timeout for that. The
-commands below are just for configuring the automation.
+and spam, clear cases are removed, borderline ones are flagged to the mods,
+and repeat violators are timed out automatically. There are no
+manual mod commands — use Discord's own kick/ban/timeout for that. Anyone
+can `/report` a member to open a private ticket with the mods; `/settings`
+configures the automation.
 
-[Add this bot to your server!](https://discord.com/oauth2/authorize?client_id=1551459097826693130&permissions=201403398&integration_type=0&scope=bot) **_(warning: the bot is still in early development and is not on 24/7. data may be deleted any time)_**
+[Add this bot to your server!](https://discord.com/oauth2/authorize?client_id=1551459097826693130&permissions=1099713031190&integration_type=0&scope=bot) **_(warning: the bot is still in early development and is not on 24/7. data may be deleted any time)_**
 
 ## Local setup
 
@@ -20,14 +22,18 @@ bun start               # or `bun dev` to auto-restart on changes
 ```
 
 Invite the bot with the `applications.commands` and `bot` scopes, and grant
-it **Manage Messages** and **Moderate Members**. Enable the **Message
+it **Manage Messages**, **Moderate Members**, **Manage Channels** (report
+tickets) and **Read Message History** (report scans). Enable the **Message
 Content** intent for the bot in the Discord Developer Portal.
+
+Run the tests with `bun test`.
 
 ## Commands
 
 - `/ping` — Pong. (will remove in the future)
 - `/help` — Shows this usage guide in Discord.
+- `/report <user> <type> <from> [to]` — report a member (only `hate speech` for now). Dates are `YYYY-MM-DD` in UTC; `to` includes that whole day and defaults to now. Opens a private ticket channel that only the reporter, the bot, admins, and roles with Moderate Members can see. The ticket shows the member's messages in that range, from channels the reporter can see, as an embed with Previous/Next buttons (10 messages per page), and Jev's confidence score for them. One report per user every 5 minutes, except for members with Manage Server or Administrator.
 - `/settings exempt-add <channel>` / `exempt-remove <channel>` / `exempt-list` — stop or resume scanning a channel.
-- `/settings hate-speech <enabled>` — toggle the hate speech filter.
-- `/settings mod-log-channel <channel>` — where spam flags and auto-timeouts get logged.
+- `/settings hate-speech <enabled>` — toggle the hate speech filter. Above 80% Jev confidence a message is deleted right away and the deletion is logged; between 50% and 80% it's left up and logged with a jump link for a mod to review.
+- `/settings mod-log-channel <channel>` — where spam flags, hate speech deletions and borderline cases, auto-timeouts and new report tickets get logged. Without one set, these are dropped.
 - `/settings timeout-config <threshold> <minutes>` — how many violations trigger an auto-timeout, and for how long.

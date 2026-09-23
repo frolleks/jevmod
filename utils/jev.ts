@@ -47,6 +47,8 @@ export async function judge(state: {
     hateLevel:
       hateScore > HATE_REMOVE_THRESHOLD ? "remove" : hateScore > HATE_REVIEW_THRESHOLD ? "review" : "none",
     spamLevel: spam?.type === "choice" ? spam.choice : "no_spam",
+    // probability of the chosen level, comparable to hateScore; null if the API omits the distribution
+    spamScore: spam?.type === "choice" ? (spam.probabilities?.[spam.choice] ?? null) : null,
   };
 }
 

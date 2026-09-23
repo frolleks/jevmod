@@ -158,12 +158,13 @@ client.on(Events.MessageCreate, async (m) => {
   const history = pushHistory(`${m.guildId}:${m.author.id}`, m.content);
 
   try {
-    const { hateScore, hateLevel, spamLevel } = await judge({
+    const { hateScore, hateLevel, spamLevel, spamScore } = await judge({
       message: m.content,
       account_created_at: m.author.createdAt.toISOString(),
       guild_joined_at: m.member?.joinedAt?.toISOString() ?? null,
       recent_messages: history.map((h) => h.content),
     });
+    const pct = (p: number | null) => (p === null ? "n/a" : `${Math.round(p * 100)}%`);
 
     if (settings.hate_speech_enabled && hateLevel === "remove") {
       await m.delete();
@@ -172,7 +173,7 @@ client.on(Events.MessageCreate, async (m) => {
         .catch(() => {}); // DMs may be closed
       await logToMod(
         m.guild,
-        `Deleted hate speech (Jev confidence ${Math.round(hateScore * 100)}%) from ${m.author} in ${m.channel}:\n${m.content}`,
+        `Deleted hate speech (Jev confidence ${pct(hateScore)}) from ${m.author} in ${m.channel}:\n${m.content}`,
       );
       if (m.member) await recordViolation(m.member, "hate speech");
     } else if (spamLevel === "high_spam") {
@@ -182,18 +183,18 @@ client.on(Events.MessageCreate, async (m) => {
         .catch(() => {});
       await logToMod(
         m.guild,
-        `High-confidence spam deleted from ${m.author} in ${m.channel}: ${m.content}`,
+        `Deleted high-confidence spam (Jev confidence ${pct(spamScore)}) from ${m.author} in ${m.channel}:\n${m.content}`,
       );
       if (m.member) await recordViolation(m.member, "spam");
     } else if (settings.hate_speech_enabled && hateLevel === "review") {
       await logToMod(
         m.guild,
-        `Needs review, no action taken: possible hate speech (Jev confidence ${Math.round(hateScore * 100)}%) from ${m.author} in ${m.channel} ${m.url}\n${m.content}`,
+        `Needs review, no action taken: possible hate speech (Jev confidence ${pct(hateScore)}) from ${m.author} in ${m.channel} ${m.url}\n${m.content}`,
       );
     } else if (spamLevel === "medium_spam") {
       await logToMod(
         m.guild,
-        `Possible spam from ${m.author} in ${m.channel}: ${m.content}`,
+        `Needs review, no action taken: possible spam (Jev confidence ${pct(spamScore)}) from ${m.author} in ${m.channel} ${m.url}\n${m.content}`,
       );
     }
   } catch (e) {

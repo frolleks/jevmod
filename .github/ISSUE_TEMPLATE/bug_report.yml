@@ -1,0 +1,44 @@
+name: Bug report
+description: Report something in Soter that isn't working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. If a message was wrongly flagged or missed, include Jev's confidence from the mod log, but redact any hateful content.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran or what was posted, in order.
+      placeholder: |
+        1. Run `/settings ...`
+        2. Post a message in #...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running Soter?
+      options:
+        - The public bot (invite link in the README)
+        - Self-hosted
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console errors (self-hosted)
+      description: Any output from the bot's console. Never paste your DISCORD_TOKEN or OPENROUTER_API_KEY.
+      render: shell

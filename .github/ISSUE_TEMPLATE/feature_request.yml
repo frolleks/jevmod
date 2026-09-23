@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest a new feature or an improvement to Soter
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you or your server's mods trying to do that Soter doesn't handle today?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work? Include any commands, settings, or Discord permissions involved.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now, or other ways this could be solved (including Discord's built-in tools).

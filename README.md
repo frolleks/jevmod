@@ -11,7 +11,7 @@ manual mod commands — use Discord's own kick/ban/timeout for that. Anyone
 can `/report` a member to open a private ticket with the mods; `/settings`
 configures the automation.
 
-[Add this bot to your server!](https://discord.com/oauth2/authorize?client_id=1551459097826693130&permissions=1099713031190&integration_type=0&scope=bot) **_(warning: the bot is still in early development and is not on 24/7. data may be deleted any time)_**
+[Add this bot to your server!](https://discord.com/oauth2/authorize?client_id=1551459097826693130&permissions=1099645938896&integration_type=0&scope=bot) **_(warning: the bot is still in early development and is not on 24/7. data may be deleted any time)_**
 
 ## Local setup
 

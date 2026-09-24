@@ -65,7 +65,7 @@ export function getSettings(guildId: string): GuildSettings {
 export function upsertSetting(
   guildId: string,
   column: "hate_speech_enabled" | "mod_log_channel_id",
-  value: string | number,
+  value: string | number | null,
 ) {
   db.run(
     `INSERT INTO guild_settings (guild_id, ${column}) VALUES (?, ?) ON CONFLICT(guild_id) DO UPDATE SET ${column} = excluded.${column}`,

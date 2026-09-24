@@ -56,3 +56,4 @@ perform. It costs one Jev call per case.
 - `/settings exempt-add <channel>` / `exempt-remove <channel>` / `exempt-list` — stop or resume scanning a channel.
 - `/settings hate-speech <enabled>` — toggle the hate speech filter. Above 80% Jev confidence a message is deleted right away and the deletion is logged; between 50% and 80% it's left up and logged with a jump link for a mod to review.
 - `/settings mod-log-channel <channel>` — where spam flags, hate speech deletions and borderline cases, new report tickets and pardons get logged, each as a color-coded embed (red: deleted, with the warning or timeout it earned; yellow: needs review; blurple: new report; green: pardoned). Without one set, these are dropped.
+- `/settings mod-log-remove` — stop logging to the mod log channel. Nothing is logged until a new one is set.

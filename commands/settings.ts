@@ -1,5 +1,5 @@
 import { ChannelType, type ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import { addExempt, listExempt, removeExempt, upsertSetting } from "../utils/db";
+import { addExempt, getSettings, listExempt, removeExempt, upsertSetting } from "../utils/db";
 
 export const data = new SlashCommandBuilder()
   .setName("settings")
@@ -35,7 +35,8 @@ export const data = new SlashCommandBuilder()
       .addChannelOption((o) =>
         o.setName("channel").setDescription("Log channel").addChannelTypes(ChannelType.GuildText).setRequired(true),
       ),
-  );
+  )
+  .addSubcommand((sc) => sc.setName("mod-log-remove").setDescription("Stop logging to the mod log channel"));
 
 export async function execute(i: ChatInputCommandInteraction) {
   if (!i.inGuild()) return;
@@ -58,5 +59,12 @@ export async function execute(i: ChatInputCommandInteraction) {
   } else if (sub === "mod-log-channel" && channel) {
     upsertSetting(i.guildId, "mod_log_channel_id", channel.id);
     await i.reply({ content: `Moderation log channel set to ${channel}.`, flags: "Ephemeral" });
+  } else if (sub === "mod-log-remove") {
+    const previous = getSettings(i.guildId).mod_log_channel_id;
+    upsertSetting(i.guildId, "mod_log_channel_id", null);
+    await i.reply({
+      content: previous ? `Stopped logging to <#${previous}>.` : "No mod log channel was set.",
+      flags: "Ephemeral",
+    });
   }
 }

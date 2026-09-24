@@ -1,6 +1,8 @@
 import {
   ActivityType,
   Client,
+  Colors,
+  EmbedBuilder,
   Events,
   GatewayIntentBits,
   PermissionFlagsBits,
@@ -24,7 +26,11 @@ import {
 } from "./utils/commands";
 import { judge, scoreHateSpeech } from "./utils/jev";
 import { pushHistory } from "./utils/history";
-import { logToMod, recordViolation } from "./utils/moderation";
+import {
+  flaggedMessageEmbed,
+  logToMod,
+  recordViolation,
+} from "./utils/moderation";
 import {
   createTicket,
   fetchUserMessages,
@@ -127,7 +133,18 @@ client.on(Events.InteractionCreate, async (i) => {
       allowedMentions: { parse: [] },
     });
     await i.editReply(`Report filed: ${ticket}`);
-    await logToMod(i.guild, `New report ticket: ${ticket}`);
+    await logToMod(
+      i.guild,
+      new EmbedBuilder()
+        .setTitle("New report ticket")
+        .setColor(Colors.Blurple)
+        .addFields(
+          { name: "Ticket", value: `${ticket}`, inline: true },
+          { name: "Type", value: type.replaceAll("_", " "), inline: true },
+          { name: "Reported user", value: `${target} (${target.tag})`, inline: true },
+          { name: "Reported by", value: `${i.user}`, inline: true },
+        ),
+    );
 
     try {
       const messages = await fetchUserMessages(
@@ -226,7 +243,7 @@ client.on(Events.MessageCreate, async (m) => {
         .catch(() => {}); // DMs may be closed
       await logToMod(
         m.guild,
-        `Deleted hate speech (Jev confidence ${pct(hateScore)}) from ${m.author} in ${m.channel}:\n${m.content}`,
+        flaggedMessageEmbed(m, "Hate speech deleted", pct(hateScore), true),
       );
       if (m.member) await recordViolation(m.member, "hate speech");
     } else if (spamLevel === "high_spam") {
@@ -236,18 +253,28 @@ client.on(Events.MessageCreate, async (m) => {
         .catch(() => {});
       await logToMod(
         m.guild,
-        `Deleted high-confidence spam (Jev confidence ${pct(spamScore)}) from ${m.author} in ${m.channel}:\n${m.content}`,
+        flaggedMessageEmbed(m, "High-confidence spam deleted", pct(spamScore), true),
       );
       if (m.member) await recordViolation(m.member, "spam");
     } else if (settings.hate_speech_enabled && hateLevel === "review") {
       await logToMod(
         m.guild,
-        `Needs review, no action taken: possible hate speech (Jev confidence ${pct(hateScore)}) from ${m.author} in ${m.channel} ${m.url}\n${m.content}`,
+        flaggedMessageEmbed(
+          m,
+          "Possible hate speech: needs review, no action taken",
+          pct(hateScore),
+          false,
+        ),
       );
     } else if (spamLevel === "medium_spam") {
       await logToMod(
         m.guild,
-        `Needs review, no action taken: possible spam (Jev confidence ${pct(spamScore)}) from ${m.author} in ${m.channel} ${m.url}\n${m.content}`,
+        flaggedMessageEmbed(
+          m,
+          "Possible spam: needs review, no action taken",
+          pct(spamScore),
+          false,
+        ),
       );
     }
   } catch (e) {

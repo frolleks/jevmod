@@ -23,8 +23,9 @@ bun start               # or `bun dev` to auto-restart on changes
 
 Invite the bot with the `applications.commands` and `bot` scopes, and grant
 it **Manage Messages**, **Moderate Members**, **Manage Channels** (report
-tickets) and **Read Message History** (report scans). Enable the **Message
-Content** intent for the bot in the Discord Developer Portal.
+tickets), **Read Message History** (report scans) and **Embed Links** (mod
+log and report embeds). Enable the **Message Content** intent for the bot in
+the Discord Developer Portal.
 
 Run the tests with `bun test`.
 
@@ -41,5 +42,5 @@ perform. It costs one Jev call per case.
 - `/report <user> <type> <from> [to]` — report a member (only `hate speech` for now). Dates are `YYYY-MM-DD` in UTC; `to` includes that whole day and defaults to now. Opens a private ticket channel that only the reporter, the bot, admins, and roles with Moderate Members can see. The ticket shows the member's messages in that range, from channels the reporter can see, as an embed with Previous/Next buttons (10 messages per page), and Jev's confidence score for them. One report per user every 5 minutes, except for members with Manage Server or Administrator.
 - `/settings exempt-add <channel>` / `exempt-remove <channel>` / `exempt-list` — stop or resume scanning a channel.
 - `/settings hate-speech <enabled>` — toggle the hate speech filter. Above 80% Jev confidence a message is deleted right away and the deletion is logged; between 50% and 80% it's left up and logged with a jump link for a mod to review.
-- `/settings mod-log-channel <channel>` — where spam flags, hate speech deletions and borderline cases, auto-timeouts and new report tickets get logged. Without one set, these are dropped.
+- `/settings mod-log-channel <channel>` — where spam flags, hate speech deletions and borderline cases, auto-timeouts and new report tickets get logged, each as a color-coded embed (red: deleted, yellow: needs review, orange: timed out, blurple: new report). Without one set, these are dropped.
 - `/settings timeout-config <threshold> <minutes>` — how many violations trigger an auto-timeout, and for how long.

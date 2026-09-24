@@ -1,5 +1,4 @@
 import {
-  type ButtonInteraction,
   type ChatInputCommandInteraction,
   Colors,
   EmbedBuilder,
@@ -7,12 +6,13 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
-import { getTranscript, saveTranscript } from "../utils/db";
+import { saveTranscript } from "../utils/db";
 import { scoreHateSpeech } from "../utils/jev";
 import { logToMod } from "../utils/moderation";
 import {
   createTicket,
   fetchUserMessages,
+  formatDay,
   onCooldown,
   parseRange,
   toTranscript,
@@ -85,13 +85,12 @@ export async function execute(i: ChatInputCommandInteraction) {
       "Couldn't open a ticket; the bot needs the Manage Channels permission.",
     ));
 
-  const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
   await ticket.send({
     content: [
       `**Report:** ${type.replaceAll("_", " ")}`,
       `**Reported user:** ${target} (${target.tag}, ${target.id})`,
       `**Reported by:** ${i.user}`,
-      `**Range:** ${day(range.start)} to ${day(range.end - 1)} (UTC)`,
+      `**Range:** ${formatDay(range.start)} to ${formatDay(range.end - 1)} (UTC)`,
     ].join("\n"),
     allowedMentions: { parse: [] },
   });
@@ -136,15 +135,4 @@ export async function execute(i: ChatInputCommandInteraction) {
     console.error("report analysis failed", e);
     await ticket.send("Automatic analysis failed; please review manually.");
   }
-}
-
-// Previous/Next on a ticket's transcript embed; the customId carries the target page
-export async function handlePageButton(i: ButtonInteraction) {
-  const entries = getTranscript(i.channelId);
-  if (!entries)
-    return void (await i.reply({
-      content: "This transcript is no longer available.",
-      flags: "Ephemeral",
-    }));
-  await i.update(transcriptPage(entries, Number(i.customId.split(":")[1])));
 }

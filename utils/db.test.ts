@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
-import { decrementViolations, incrementViolations } from "./db";
+import { decrementViolations, getViolations, incrementViolations } from "./db";
 
 test("decrementViolations removes the latest violation and never goes below zero", () => {
   expect(decrementViolations("guild", "unknown")).toBeNull();
+  expect(getViolations("guild", "unknown")).toBe(0);
 
   incrementViolations("guild", "user");
   incrementViolations("guild", "user");

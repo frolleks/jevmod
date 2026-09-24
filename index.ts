@@ -2,6 +2,7 @@ import { ActivityType, Client, Events, GatewayIntentBits } from "discord.js";
 import * as help from "./commands/help";
 import * as pardon from "./commands/pardon";
 import * as ping from "./commands/ping";
+import * as profile from "./commands/profile";
 import * as report from "./commands/report";
 import * as settings from "./commands/settings";
 import { getSettings, isChannelExempt } from "./utils/db";
@@ -12,9 +13,10 @@ import {
   logToMod,
   recordViolation,
 } from "./utils/moderation";
+import { handlePageButton } from "./utils/reports";
 
 // each command module exports its definition (`data`) and its handler (`execute`)
-const commands = [ping, help, report, pardon, settings];
+const commands = [ping, help, report, profile, pardon, settings];
 
 const client = new Client({
   intents: [
@@ -39,7 +41,7 @@ client.on(Events.InteractionCreate, async (i) => {
   // under Bun, an error thrown out of an async listener kills the whole process
   try {
     if (i.isButton() && i.customId.startsWith("report-page:"))
-      await report.handlePageButton(i);
+      await handlePageButton(i);
     else if (i.isChatInputCommand())
       await commands.find((cmd) => cmd.data.name === i.commandName)?.execute(i);
   } catch (e) {

@@ -18,21 +18,22 @@ db.run(
 db.run(
   "CREATE TABLE IF NOT EXISTS violations (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))",
 );
-// ponytail: rows outlive deleted ticket channels; clean up on ChannelDelete if the db grows
+// keyed by the ticket channel for /report, and by the reply message for /profile (several can share a channel)
+// ponytail: rows outlive deleted tickets and dismissed profile replies; prune old rows if the db grows
 db.run(
   "CREATE TABLE IF NOT EXISTS report_transcripts (ticket_id TEXT PRIMARY KEY, messages TEXT NOT NULL)",
 );
 
-export function saveTranscript(ticketId: string, entries: TranscriptEntry[]) {
+export function saveTranscript(key: string, entries: TranscriptEntry[]) {
   db.run("INSERT OR REPLACE INTO report_transcripts VALUES (?, ?)", [
-    ticketId,
+    key,
     JSON.stringify(entries),
   ]);
 }
-export function getTranscript(ticketId: string): TranscriptEntry[] | null {
+export function getTranscript(key: string): TranscriptEntry[] | null {
   const row = db
     .query("SELECT messages FROM report_transcripts WHERE ticket_id = ?")
-    .get(ticketId) as {
+    .get(key) as {
     messages: string;
   } | null;
   return row ? JSON.parse(row.messages) : null;
@@ -100,12 +101,13 @@ export function incrementViolations(guildId: string, userId: string): number {
     "INSERT INTO violations (guild_id, user_id, count) VALUES (?, ?, 1) ON CONFLICT(guild_id, user_id) DO UPDATE SET count = count + 1",
     [guildId, userId],
   );
+  return getViolations(guildId, userId);
+}
+export function getViolations(guildId: string, userId: string): number {
   const row = db
     .query("SELECT count FROM violations WHERE guild_id = ? AND user_id = ?")
-    .get(guildId, userId) as {
-    count: number;
-  };
-  return row.count;
+    .get(guildId, userId) as { count: number } | null;
+  return row?.count ?? 0;
 }
 // stops counting the latest violation, moving the member one step back down the ladder;
 // returns the new count, or null if they had none

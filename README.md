@@ -6,8 +6,9 @@ Soter is an automated Discord moderation bot, powered by Jev.
 
 Soter moderates mostly on its own: every message is scanned for hate speech
 and spam, clear cases are removed, and borderline ones are flagged to the mods.
-Apart from `/pardon`, there are no manual mod commands — use Discord's own
-kick/ban/timeout for those. Anyone
+Mods can look a member up with `/profile` and undo a violation with `/pardon`;
+there are no manual punishment commands — use Discord's own kick/ban/timeout
+for those. Anyone
 can `/report` a member to open a private ticket with the mods; `/settings`
 configures the automation.
 
@@ -35,7 +36,7 @@ bun start               # or `bun dev` to auto-restart on changes
 
 Invite the bot with the `applications.commands` and `bot` scopes, and grant
 it **Manage Messages**, **Moderate Members**, **Manage Channels** (report
-tickets), **Read Message History** (report scans) and **Embed Links** (mod
+tickets), **Read Message History** (report and profile scans) and **Embed Links** (mod
 log and report embeds). Enable the **Message Content** intent for the bot in
 the Discord Developer Portal.
 
@@ -52,6 +53,7 @@ perform. It costs one Jev call per case.
 - `/ping` — Pong. (will remove in the future)
 - `/help` — Shows this usage guide in Discord.
 - `/report <user> <type> <from> [to]` — report a member (only `hate speech` for now). Dates are `YYYY-MM-DD` in UTC; `to` includes that whole day and defaults to now. Opens a private ticket channel that only the reporter, the bot, admins, and roles with Moderate Members can see. The ticket shows the member's messages in that range, from channels the reporter can see, as an embed with Previous/Next buttons (10 messages per page), and Jev's confidence score for them. One report per user every 5 minutes, except for members with Manage Server or Administrator.
+- `/profile <user> <from> [to]` — mods only (Moderate Members). Looks a member up without opening a ticket. It shows when their account was created and when they joined, their violations on record, and Jev's hate speech and spam confidence across their messages in that range. Only channels you can see are scanned, and at most their newest 100 messages. Replies privately, followed by the same paginated message history as `/report`. Dates work like `/report`'s.
 - `/pardon <user>` — mods only (Moderate Members). Stops counting the member's latest violation, moving them one step back down the ladder, and lifts their timeout if they have one. It can't restore a deleted message. The member gets a DM saying what was undone, and the pardon is logged to the mod log.
 - `/settings exempt-add <channel>` / `exempt-remove <channel>` / `exempt-list` — stop or resume scanning a channel.
 - `/settings hate-speech <enabled>` — toggle the hate speech filter. Above 80% Jev confidence a message is deleted right away and the deletion is logged; between 50% and 80% it's left up and logged with a jump link for a mod to review.

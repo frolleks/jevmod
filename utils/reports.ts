@@ -1,6 +1,7 @@
 import {
   ActionRowBuilder,
   ButtonBuilder,
+  type ButtonInteraction,
   ButtonStyle,
   ChannelType,
   EmbedBuilder,
@@ -12,7 +13,7 @@ import {
   SnowflakeUtil,
   type TextChannel,
 } from "discord.js";
-import { addExempt, isChannelExempt } from "./db";
+import { addExempt, getTranscript, isChannelExempt } from "./db";
 
 const DAY_MS = 86_400_000;
 const MAX_PAGES_PER_CHANNEL = 10; // 100 messages per page
@@ -27,6 +28,9 @@ export function parseDay(s: string): Date | null {
     ? d
     : null;
 }
+// the inverse: ms -> "YYYY-MM-DD" (UTC)
+export const formatDay = (ms: number) =>
+  new Date(ms).toISOString().slice(0, 10);
 
 // returns [start, end) in ms, or an error message for the user; `to` covers that whole day, omitted means now
 export function parseRange(
@@ -162,7 +166,7 @@ export function transcriptPage(entries: TranscriptEntry[], page: number) {
   const pages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
   page = Math.min(Math.max(page || 0, 0), pages - 1); // `|| 0` catches NaN from a malformed customId
   const embed = new EmbedBuilder()
-    .setTitle("Reported messages")
+    .setTitle("Message history")
     .setFooter({
       text: `Page ${page + 1}/${pages} · ${entries.length} messages`,
     })
@@ -189,6 +193,18 @@ export function transcriptPage(entries: TranscriptEntry[], page: number) {
       .setDisabled(page === pages - 1),
   );
   return { embeds: [embed], components: [row] };
+}
+
+// Previous/Next on a transcript embed; the customId carries the target page.
+// /profile stores transcripts under the reply message, /report under the ticket channel
+export async function handlePageButton(i: ButtonInteraction) {
+  const entries = getTranscript(i.message.id) ?? getTranscript(i.channelId);
+  if (!entries)
+    return void (await i.reply({
+      content: "This transcript is no longer available.",
+      flags: "Ephemeral",
+    }));
+  await i.update(transcriptPage(entries, Number(i.customId.split(":")[1])));
 }
 
 // ponytail: in-memory per-user cooldown, resets on restart

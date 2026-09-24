@@ -5,6 +5,7 @@ import {
 } from "discord.js";
 import * as pardon from "./pardon";
 import * as ping from "./ping";
+import * as profile from "./profile";
 import * as report from "./report";
 import * as settings from "./settings";
 
@@ -28,9 +29,9 @@ function usage(
 function helpText() {
   const settingsJson = settings.data.toJSON();
   const lines = [
-    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, clear cases are removed, and borderline ones are flagged to the mods. Each removal is a violation: the first gets a warning, the second a final warning, then timeouts start at 5 minutes and double each time. Apart from `/pardon`, there are no manual mod commands — use Discord's own kick/ban/timeout for those. Anyone can `/report` a member to open a private ticket with the mods; `/settings` configures the automation.",
+    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, clear cases are removed, and borderline ones are flagged to the mods. Each removal is a violation: the first gets a warning, the second a final warning, then timeouts start at 5 minutes and double each time. Mods can look a member up with `/profile` and undo a violation with `/pardon`; there are no manual punishment commands — use Discord's own kick/ban/timeout for those. Anyone can `/report` a member to open a private ticket with the mods; `/settings` configures the automation.",
     "",
-    ...[ping.data, report.data, pardon.data].map((c) => {
+    ...[ping.data, report.data, profile.data, pardon.data].map((c) => {
       const json = c.toJSON();
       return `${usage(json.name, json.options)} — ${json.description}`;
     }),

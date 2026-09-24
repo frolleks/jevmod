@@ -9,18 +9,19 @@ import {
 } from "discord.js";
 import {
   addExempt,
+  decrementViolations,
   getSettings,
   getTranscript,
   isChannelExempt,
   listExempt,
   removeExempt,
   saveTranscript,
-  setTimeoutConfig,
   upsertSetting,
 } from "./utils/db";
 import {
   buildHelpText,
   helpCommand,
+  pardonCommand,
   reportCommand,
   settingsCommand,
 } from "./utils/commands";
@@ -54,6 +55,7 @@ client.once(Events.ClientReady, async (c) => {
     { name: "ping", description: "Pong" },
     helpCommand.toJSON(),
     reportCommand.toJSON(),
+    pardonCommand.toJSON(),
     settingsCommand.toJSON(),
   ]);
   console.log(`Logged in as ${c.user.tag}`);
@@ -172,6 +174,67 @@ client.on(Events.InteractionCreate, async (i) => {
     return;
   }
 
+  if (i.commandName === "pardon" && i.inCachedGuild()) {
+    const user = i.options.getUser("user", true);
+    await i.deferReply({ flags: "Ephemeral" });
+    const remaining = decrementViolations(i.guildId, user.id);
+    // force: without the GuildMembers intent, the cached timeout state can be stale
+    const member = await i.guild.members
+      .fetch({ user: user.id, force: true })
+      .catch(() => null);
+    let timeout: "none" | "lifted" | "failed" = "none";
+    if (member?.isCommunicationDisabled()) {
+      timeout = await member
+        .timeout(null, `Pardoned by ${i.user.tag}`)
+        .then(
+          () => "lifted" as const,
+          () => "failed" as const,
+        );
+    }
+    if (remaining === null && timeout === "none") {
+      return void (await i.editReply(
+        `Nothing to pardon: ${user} has no violations on record and isn't timed out.`,
+      ));
+    }
+
+    const result = [
+      remaining === null
+        ? "They had no violations on record."
+        : `Their latest violation no longer counts (${remaining} left on record).`,
+    ];
+    if (timeout === "lifted") result.push("Their timeout was lifted.");
+    if (timeout === "failed") {
+      result.push(
+        "Couldn't lift their timeout; the bot needs Moderate Members and a role above theirs.",
+      );
+    }
+    await i.editReply(result.join("\n"));
+
+    const undone: string[] = [];
+    if (remaining !== null) undone.push("your latest violation no longer counts");
+    if (timeout === "lifted") undone.push("your timeout has been lifted");
+    if (undone.length) {
+      await user
+        .send(
+          `A moderator in **${i.guild.name}** pardoned you: ${undone.join(" and ")}.`,
+        )
+        .catch(() => {}); // DMs may be closed
+    }
+
+    await logToMod(
+      i.guild,
+      new EmbedBuilder()
+        .setTitle("Member pardoned")
+        .setColor(Colors.Green)
+        .setDescription(result.join("\n"))
+        .addFields(
+          { name: "Member", value: `${user} (${user.tag})`, inline: true },
+          { name: "Pardoned by", value: `${i.user}`, inline: true },
+        ),
+    );
+    return;
+  }
+
   if (i.commandName === "settings" && i.inGuild()) {
     const channel = i.options.getChannel("channel");
     const sub = i.options.getSubcommand();
@@ -207,14 +270,6 @@ client.on(Events.InteractionCreate, async (i) => {
         content: `Moderation log channel set to ${channel}.`,
         flags: "Ephemeral",
       });
-    } else if (sub === "timeout-config") {
-      const threshold = i.options.getInteger("threshold", true);
-      const minutes = i.options.getInteger("minutes", true);
-      setTimeoutConfig(i.guildId, threshold, minutes);
-      await i.reply({
-        content: `Auto-timeout: ${threshold} violations → ${minutes}m timeout.`,
-        flags: "Ephemeral",
-      });
     }
   }
 });
@@ -238,24 +293,29 @@ client.on(Events.MessageCreate, async (m) => {
 
     if (settings.hate_speech_enabled && hateLevel === "remove") {
       await m.delete();
-      await m.author
-        .send("Your message was removed because it was flagged as hate speech.")
-        .catch(() => {}); // DMs may be closed
+      // recordViolation DMs the member and applies the warning/timeout ladder
+      const action = m.member
+        ? await recordViolation(m.member, "hate speech")
+        : "None: member not found";
       await logToMod(
         m.guild,
-        flaggedMessageEmbed(m, "Hate speech deleted", pct(hateScore), true),
+        flaggedMessageEmbed(m, "Hate speech deleted", pct(hateScore), true).addFields({
+          name: "Action",
+          value: action,
+        }),
       );
-      if (m.member) await recordViolation(m.member, "hate speech");
     } else if (spamLevel === "high_spam") {
       await m.delete();
-      await m.author
-        .send("Your message was removed because it was flagged as spam.")
-        .catch(() => {});
+      const action = m.member
+        ? await recordViolation(m.member, "spam")
+        : "None: member not found";
       await logToMod(
         m.guild,
-        flaggedMessageEmbed(m, "High-confidence spam deleted", pct(spamScore), true),
+        flaggedMessageEmbed(m, "High-confidence spam deleted", pct(spamScore), true).addFields({
+          name: "Action",
+          value: action,
+        }),
       );
-      if (m.member) await recordViolation(m.member, "spam");
     } else if (settings.hate_speech_enabled && hateLevel === "review") {
       await logToMod(
         m.guild,

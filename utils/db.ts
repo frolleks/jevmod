@@ -1,7 +1,8 @@
 import { Database } from "bun:sqlite";
 import type { TranscriptEntry } from "./reports";
 
-export const db = new Database("bot.sqlite");
+// in-memory under `bun test` (which sets NODE_ENV=test), so tests never touch the real data
+export const db = new Database(process.env.NODE_ENV === "test" ? ":memory:" : "bot.sqlite");
 db.run(
   "CREATE TABLE IF NOT EXISTS exempt_channels (guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, PRIMARY KEY (guild_id, channel_id))",
 );
@@ -9,8 +10,6 @@ db.run(
   `CREATE TABLE IF NOT EXISTS guild_settings (
     guild_id TEXT PRIMARY KEY,
     hate_speech_enabled INTEGER NOT NULL DEFAULT 1,
-    timeout_threshold INTEGER NOT NULL DEFAULT 3,
-    timeout_minutes INTEGER NOT NULL DEFAULT 10,
     mod_log_channel_id TEXT
   )`,
 );
@@ -49,18 +48,15 @@ export function listExempt(guildId: string): string[] {
 
 export type GuildSettings = {
   hate_speech_enabled: number;
-  timeout_threshold: number;
-  timeout_minutes: number;
   mod_log_channel_id: string | null;
 };
 const DEFAULT_SETTINGS: GuildSettings = {
   hate_speech_enabled: 1,
-  timeout_threshold: 3,
-  timeout_minutes: 10,
   mod_log_channel_id: null,
 };
+// databases created before the violation ladder still have unused timeout_threshold/timeout_minutes columns
 const getSettingsQuery = db.query(
-  "SELECT hate_speech_enabled, timeout_threshold, timeout_minutes, mod_log_channel_id FROM guild_settings WHERE guild_id = ?",
+  "SELECT hate_speech_enabled, mod_log_channel_id FROM guild_settings WHERE guild_id = ?",
 );
 export function getSettings(guildId: string): GuildSettings {
   return (getSettingsQuery.get(guildId) as GuildSettings | null) ?? DEFAULT_SETTINGS;
@@ -76,14 +72,8 @@ export function upsertSetting(
     [guildId, value],
   );
 }
-export function setTimeoutConfig(guildId: string, threshold: number, minutes: number) {
-  db.run(
-    `INSERT INTO guild_settings (guild_id, timeout_threshold, timeout_minutes) VALUES (?, ?, ?)
-     ON CONFLICT(guild_id) DO UPDATE SET timeout_threshold = excluded.timeout_threshold, timeout_minutes = excluded.timeout_minutes`,
-    [guildId, threshold, minutes],
-  );
-}
-
+// ponytail: violations never expire, so old history still moves someone up the ladder; store a timestamp per
+// violation and ignore old ones if that turns out too harsh
 export function incrementViolations(guildId: string, userId: string): number {
   db.run(
     "INSERT INTO violations (guild_id, user_id, count) VALUES (?, ?, 1) ON CONFLICT(guild_id, user_id) DO UPDATE SET count = count + 1",
@@ -94,6 +84,11 @@ export function incrementViolations(guildId: string, userId: string): number {
   };
   return row.count;
 }
-export function resetViolations(guildId: string, userId: string) {
-  db.run("UPDATE violations SET count = 0 WHERE guild_id = ? AND user_id = ?", [guildId, userId]);
+// stops counting the latest violation, moving the member one step back down the ladder;
+// returns the new count, or null if they had none
+export function decrementViolations(guildId: string, userId: string): number | null {
+  const row = db
+    .query("UPDATE violations SET count = count - 1 WHERE guild_id = ? AND user_id = ? AND count > 0 RETURNING count")
+    .get(guildId, userId) as { count: number } | null;
+  return row?.count ?? null;
 }

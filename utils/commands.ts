@@ -36,17 +36,10 @@ export const settingsCommand = new SlashCommandBuilder()
   .addSubcommand((sc) =>
     sc
       .setName("mod-log-channel")
-      .setDescription("Set the channel that mod flags, auto-timeouts and new reports are logged to")
+      .setDescription("Set the channel that mod flags, warnings, timeouts and new reports are logged to")
       .addChannelOption((o) =>
         o.setName("channel").setDescription("Log channel").addChannelTypes(ChannelType.GuildText).setRequired(true),
       ),
-  )
-  .addSubcommand((sc) =>
-    sc
-      .setName("timeout-config")
-      .setDescription("Configure auto-timeout for repeated violations")
-      .addIntegerOption((o) => o.setName("threshold").setDescription("Violations before timeout").setMinValue(1).setRequired(true))
-      .addIntegerOption((o) => o.setName("minutes").setDescription("Timeout duration in minutes").setMinValue(1).setRequired(true)),
   );
 
 export const reportCommand = new SlashCommandBuilder()
@@ -68,6 +61,13 @@ export const reportCommand = new SlashCommandBuilder()
     o.setName("to").setDescription("Up to and including this date (YYYY-MM-DD, UTC); defaults to now").setRequired(false),
   );
 
+export const pardonCommand = new SlashCommandBuilder()
+  .setName("pardon")
+  .setDescription("Stop counting a member's latest violation and lift their timeout")
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+  .setContexts(InteractionContextType.Guild)
+  .addUserOption((o) => o.setName("user").setDescription("Who to pardon").setRequired(true));
+
 export const helpCommand = new SlashCommandBuilder().setName("help").setDescription("List available commands");
 
 function usage(command: string, options: { name: string; required?: boolean }[] = []) {
@@ -77,13 +77,15 @@ function usage(command: string, options: { name: string; required?: boolean }[] 
 
 // built from the commands' own definitions, so this can't drift out of sync
 export function buildHelpText(): string {
-  const report = reportCommand.toJSON();
   const settings = settingsCommand.toJSON();
   const lines = [
-    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, clear cases are removed, borderline ones are flagged to the mods, and repeat violators are timed out automatically. There are no manual mod commands — use Discord's own kick/ban/timeout for that. Anyone can `/report` a member to open a private ticket with the mods; `/settings` configures the automation.",
+    "This bot moderates mostly on its own: every message is scanned for hate speech and spam, clear cases are removed, and borderline ones are flagged to the mods. Each removal is a violation: the first gets a warning, the second a final warning, then timeouts start at 5 minutes and double each time. Apart from `/pardon`, there are no manual mod commands — use Discord's own kick/ban/timeout for those. Anyone can `/report` a member to open a private ticket with the mods; `/settings` configures the automation.",
     "",
     "**/ping** — Pong",
-    `${usage(report.name, report.options)} — ${report.description}`,
+    ...[reportCommand, pardonCommand].map((c) => {
+      const json = c.toJSON();
+      return `${usage(json.name, json.options)} — ${json.description}`;
+    }),
     "",
     `**/settings** — ${settings.description}`,
   ];

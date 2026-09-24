@@ -2,7 +2,9 @@ import { Database } from "bun:sqlite";
 import type { TranscriptEntry } from "./reports";
 
 // in-memory under `bun test` (which sets NODE_ENV=test), so tests never touch the real data
-export const db = new Database(process.env.NODE_ENV === "test" ? ":memory:" : "bot.sqlite");
+export const db = new Database(
+  process.env.NODE_ENV === "test" ? ":memory:" : "bot.sqlite",
+);
 db.run(
   "CREATE TABLE IF NOT EXISTS exempt_channels (guild_id TEXT NOT NULL, channel_id TEXT NOT NULL, PRIMARY KEY (guild_id, channel_id))",
 );
@@ -17,30 +19,47 @@ db.run(
   "CREATE TABLE IF NOT EXISTS violations (guild_id TEXT NOT NULL, user_id TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (guild_id, user_id))",
 );
 // ponytail: rows outlive deleted ticket channels; clean up on ChannelDelete if the db grows
-db.run("CREATE TABLE IF NOT EXISTS report_transcripts (ticket_id TEXT PRIMARY KEY, messages TEXT NOT NULL)");
+db.run(
+  "CREATE TABLE IF NOT EXISTS report_transcripts (ticket_id TEXT PRIMARY KEY, messages TEXT NOT NULL)",
+);
 
 export function saveTranscript(ticketId: string, entries: TranscriptEntry[]) {
-  db.run("INSERT OR REPLACE INTO report_transcripts VALUES (?, ?)", [ticketId, JSON.stringify(entries)]);
+  db.run("INSERT OR REPLACE INTO report_transcripts VALUES (?, ?)", [
+    ticketId,
+    JSON.stringify(entries),
+  ]);
 }
 export function getTranscript(ticketId: string): TranscriptEntry[] | null {
-  const row = db.query("SELECT messages FROM report_transcripts WHERE ticket_id = ?").get(ticketId) as {
+  const row = db
+    .query("SELECT messages FROM report_transcripts WHERE ticket_id = ?")
+    .get(ticketId) as {
     messages: string;
   } | null;
   return row ? JSON.parse(row.messages) : null;
 }
 
-const isExemptQuery = db.query("SELECT 1 FROM exempt_channels WHERE guild_id = ? AND channel_id = ?");
+const isExemptQuery = db.query(
+  "SELECT 1 FROM exempt_channels WHERE guild_id = ? AND channel_id = ?",
+);
 export function isChannelExempt(guildId: string, channelId: string): boolean {
   return isExemptQuery.get(guildId, channelId) !== null;
 }
 export function addExempt(guildId: string, channelId: string) {
-  db.run("INSERT OR IGNORE INTO exempt_channels VALUES (?, ?)", [guildId, channelId]);
+  db.run("INSERT OR IGNORE INTO exempt_channels VALUES (?, ?)", [
+    guildId,
+    channelId,
+  ]);
 }
 export function removeExempt(guildId: string, channelId: string) {
-  db.run("DELETE FROM exempt_channels WHERE guild_id = ? AND channel_id = ?", [guildId, channelId]);
+  db.run("DELETE FROM exempt_channels WHERE guild_id = ? AND channel_id = ?", [
+    guildId,
+    channelId,
+  ]);
 }
 export function listExempt(guildId: string): string[] {
-  const rows = db.query("SELECT channel_id FROM exempt_channels WHERE guild_id = ?").all(guildId) as {
+  const rows = db
+    .query("SELECT channel_id FROM exempt_channels WHERE guild_id = ?")
+    .all(guildId) as {
     channel_id: string;
   }[];
   return rows.map((r) => r.channel_id);
@@ -59,7 +78,9 @@ const getSettingsQuery = db.query(
   "SELECT hate_speech_enabled, mod_log_channel_id FROM guild_settings WHERE guild_id = ?",
 );
 export function getSettings(guildId: string): GuildSettings {
-  return (getSettingsQuery.get(guildId) as GuildSettings | null) ?? DEFAULT_SETTINGS;
+  return (
+    (getSettingsQuery.get(guildId) as GuildSettings | null) ?? DEFAULT_SETTINGS
+  );
 }
 // column name is only ever one of the literals passed at call sites, never user input
 export function upsertSetting(
@@ -79,16 +100,23 @@ export function incrementViolations(guildId: string, userId: string): number {
     "INSERT INTO violations (guild_id, user_id, count) VALUES (?, ?, 1) ON CONFLICT(guild_id, user_id) DO UPDATE SET count = count + 1",
     [guildId, userId],
   );
-  const row = db.query("SELECT count FROM violations WHERE guild_id = ? AND user_id = ?").get(guildId, userId) as {
+  const row = db
+    .query("SELECT count FROM violations WHERE guild_id = ? AND user_id = ?")
+    .get(guildId, userId) as {
     count: number;
   };
   return row.count;
 }
 // stops counting the latest violation, moving the member one step back down the ladder;
 // returns the new count, or null if they had none
-export function decrementViolations(guildId: string, userId: string): number | null {
+export function decrementViolations(
+  guildId: string,
+  userId: string,
+): number | null {
   const row = db
-    .query("UPDATE violations SET count = count - 1 WHERE guild_id = ? AND user_id = ? AND count > 0 RETURNING count")
+    .query(
+      "UPDATE violations SET count = count - 1 WHERE guild_id = ? AND user_id = ? AND count > 0 RETURNING count",
+    )
     .get(guildId, userId) as { count: number } | null;
   return row?.count ?? null;
 }

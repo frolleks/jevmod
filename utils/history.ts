@@ -5,7 +5,9 @@ const HISTORY_MAX = 8;
 
 export function pushHistory(key: string, content: string) {
   const now = Date.now();
-  const list = (recentByUser.get(key) ?? []).filter((h) => now - h.at < HISTORY_WINDOW_MS);
+  const list = (recentByUser.get(key) ?? []).filter(
+    (h) => now - h.at < HISTORY_WINDOW_MS,
+  );
   list.push({ content, at: now });
   if (list.length > HISTORY_MAX) list.shift();
   recentByUser.set(key, list);

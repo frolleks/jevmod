@@ -7,7 +7,11 @@ import * as settings from "./commands/settings";
 import { getSettings, isChannelExempt } from "./utils/db";
 import { pushHistory } from "./utils/history";
 import { judge } from "./utils/jev";
-import { flaggedMessageEmbed, logToMod, recordViolation } from "./utils/moderation";
+import {
+  flaggedMessageEmbed,
+  logToMod,
+  recordViolation,
+} from "./utils/moderation";
 
 // each command module exports its definition (`data`) and its handler (`execute`)
 const commands = [ping, help, report, pardon, settings];
@@ -25,15 +29,19 @@ client.once(Events.ClientReady, async (c) => {
   await c.application.commands.set(commands.map((cmd) => cmd.data.toJSON()));
   console.log(`Logged in as ${c.user.tag}`);
   c.user.setPresence({
-    activities: [{ name: "Watching and moderating", type: ActivityType.Watching }],
+    activities: [
+      { name: "Watching and moderating", type: ActivityType.Watching },
+    ],
   });
 });
 
 client.on(Events.InteractionCreate, async (i) => {
   // under Bun, an error thrown out of an async listener kills the whole process
   try {
-    if (i.isButton() && i.customId.startsWith("report-page:")) await report.handlePageButton(i);
-    else if (i.isChatInputCommand()) await commands.find((cmd) => cmd.data.name === i.commandName)?.execute(i);
+    if (i.isButton() && i.customId.startsWith("report-page:"))
+      await report.handlePageButton(i);
+    else if (i.isChatInputCommand())
+      await commands.find((cmd) => cmd.data.name === i.commandName)?.execute(i);
   } catch (e) {
     console.error("interaction failed", e);
   }
@@ -53,22 +61,37 @@ client.on(Events.MessageCreate, async (m) => {
       guild_joined_at: m.member?.joinedAt?.toISOString() ?? null,
       recent_messages: history.map((h) => h.content),
     });
-    const pct = (p: number | null) => (p === null ? "n/a" : `${Math.round(p * 100)}%`);
+    const pct = (p: number | null) =>
+      p === null ? "n/a" : `${Math.round(p * 100)}%`;
 
     if (hate_speech_enabled && hateLevel === "remove") {
       await m.delete();
       // recordViolation DMs the member and applies the warning/timeout ladder
-      const action = m.member ? await recordViolation(m.member, "hate speech") : "None: member not found";
+      const action = m.member
+        ? await recordViolation(m.member, "hate speech")
+        : "None: member not found";
       await logToMod(
         m.guild,
-        flaggedMessageEmbed(m, "Hate speech deleted", pct(hateScore), true).addFields({ name: "Action", value: action }),
+        flaggedMessageEmbed(
+          m,
+          "Hate speech deleted",
+          pct(hateScore),
+          true,
+        ).addFields({ name: "Action", value: action }),
       );
     } else if (spamLevel === "high_spam") {
       await m.delete();
-      const action = m.member ? await recordViolation(m.member, "spam") : "None: member not found";
+      const action = m.member
+        ? await recordViolation(m.member, "spam")
+        : "None: member not found";
       await logToMod(
         m.guild,
-        flaggedMessageEmbed(m, "High-confidence spam deleted", pct(spamScore), true).addFields({
+        flaggedMessageEmbed(
+          m,
+          "High-confidence spam deleted",
+          pct(spamScore),
+          true,
+        ).addFields({
           name: "Action",
           value: action,
         }),
@@ -76,10 +99,23 @@ client.on(Events.MessageCreate, async (m) => {
     } else if (hate_speech_enabled && hateLevel === "review") {
       await logToMod(
         m.guild,
-        flaggedMessageEmbed(m, "Possible hate speech: needs review, no action taken", pct(hateScore), false),
+        flaggedMessageEmbed(
+          m,
+          "Possible hate speech: needs review, no action taken",
+          pct(hateScore),
+          false,
+        ),
       );
     } else if (spamLevel === "medium_spam") {
-      await logToMod(m.guild, flaggedMessageEmbed(m, "Possible spam: needs review, no action taken", pct(spamScore), false));
+      await logToMod(
+        m.guild,
+        flaggedMessageEmbed(
+          m,
+          "Possible spam: needs review, no action taken",
+          pct(spamScore),
+          false,
+        ),
+      );
     }
   } catch (e) {
     console.error("moderation failed", e); // fail open: a scan error never blocks chat

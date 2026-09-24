@@ -13,11 +13,11 @@ configures the automation.
 
 Each removed message is a violation, and repeat violations escalate:
 
-| Violation | Result |
-|---|---|
-| 1st | Warning |
-| 2nd | Final warning |
-| 3rd | 5-minute timeout |
+| Violation     | Result                                                                           |
+| ------------- | -------------------------------------------------------------------------------- |
+| 1st           | Warning                                                                          |
+| 2nd           | Final warning                                                                    |
+| 3rd           | 5-minute timeout                                                                 |
 | 4th and later | The timeout doubles each time (10m, 20m, 40m, …), up to Discord's 28-day maximum |
 
 The member gets a DM saying what happened, and the step is logged to the mod

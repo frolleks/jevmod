@@ -7,10 +7,13 @@
     "start": "bun index.ts",
     "dev": "bun --watch index.ts",
     "typecheck": "tsc --noEmit",
-    "eval": "bun scripts/eval.ts"
+    "eval": "bun scripts/eval.ts",
+    "format": "prettier --write .",
+    "fmt": "bun run format"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prettier": "^3.9.9"
   },
   "peerDependencies": {
     "typescript": "^7"

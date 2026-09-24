@@ -1,16 +1,25 @@
-import { ApplicationCommandOptionType, type ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  ApplicationCommandOptionType,
+  type ChatInputCommandInteraction,
+  SlashCommandBuilder,
+} from "discord.js";
 import * as pardon from "./pardon";
 import * as ping from "./ping";
 import * as report from "./report";
 import * as settings from "./settings";
 
-export const data = new SlashCommandBuilder().setName("help").setDescription("List available commands");
+export const data = new SlashCommandBuilder()
+  .setName("help")
+  .setDescription("List available commands");
 
 export async function execute(i: ChatInputCommandInteraction) {
   await i.reply({ content: helpText(), flags: "Ephemeral" });
 }
 
-function usage(command: string, options: { name: string; required?: boolean }[] = []) {
+function usage(
+  command: string,
+  options: { name: string; required?: boolean }[] = [],
+) {
   const args = options.map((o) => (o.required ? `<${o.name}>` : `[${o.name}]`));
   return `\`/${[command, ...args].join(" ")}\``;
 }
@@ -30,7 +39,9 @@ function helpText() {
   ];
   for (const sub of settingsJson.options ?? []) {
     if (sub.type !== ApplicationCommandOptionType.Subcommand) continue;
-    lines.push(`${usage(`settings ${sub.name}`, sub.options)} — ${sub.description}`);
+    lines.push(
+      `${usage(`settings ${sub.name}`, sub.options)} — ${sub.description}`,
+    );
   }
   return lines.join("\n");
 }

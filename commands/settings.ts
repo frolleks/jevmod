@@ -1,5 +1,16 @@
-import { ChannelType, type ChatInputCommandInteraction, PermissionFlagsBits, SlashCommandBuilder } from "discord.js";
-import { addExempt, getSettings, listExempt, removeExempt, upsertSetting } from "../utils/db";
+import {
+  ChannelType,
+  type ChatInputCommandInteraction,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} from "discord.js";
+import {
+  addExempt,
+  getSettings,
+  listExempt,
+  removeExempt,
+  upsertSetting,
+} from "../utils/db";
 
 export const data = new SlashCommandBuilder()
   .setName("settings")
@@ -10,7 +21,11 @@ export const data = new SlashCommandBuilder()
       .setName("exempt-add")
       .setDescription("Stop scanning a channel")
       .addChannelOption((o) =>
-        o.setName("channel").setDescription("Channel to exempt").addChannelTypes(ChannelType.GuildText).setRequired(true),
+        o
+          .setName("channel")
+          .setDescription("Channel to exempt")
+          .addChannelTypes(ChannelType.GuildText)
+          .setRequired(true),
       ),
   )
   .addSubcommand((sc) =>
@@ -18,25 +33,48 @@ export const data = new SlashCommandBuilder()
       .setName("exempt-remove")
       .setDescription("Resume scanning a channel")
       .addChannelOption((o) =>
-        o.setName("channel").setDescription("Channel to un-exempt").addChannelTypes(ChannelType.GuildText).setRequired(true),
+        o
+          .setName("channel")
+          .setDescription("Channel to un-exempt")
+          .addChannelTypes(ChannelType.GuildText)
+          .setRequired(true),
       ),
   )
-  .addSubcommand((sc) => sc.setName("exempt-list").setDescription("List channels exempt from scanning"))
+  .addSubcommand((sc) =>
+    sc
+      .setName("exempt-list")
+      .setDescription("List channels exempt from scanning"),
+  )
   .addSubcommand((sc) =>
     sc
       .setName("hate-speech")
       .setDescription("Toggle the hate speech filter")
-      .addBooleanOption((o) => o.setName("enabled").setDescription("Enable filtering").setRequired(true)),
+      .addBooleanOption((o) =>
+        o
+          .setName("enabled")
+          .setDescription("Enable filtering")
+          .setRequired(true),
+      ),
   )
   .addSubcommand((sc) =>
     sc
       .setName("mod-log-channel")
-      .setDescription("Set the channel that mod flags, warnings, timeouts and new reports are logged to")
+      .setDescription(
+        "Set the channel that mod flags, warnings, timeouts and new reports are logged to",
+      )
       .addChannelOption((o) =>
-        o.setName("channel").setDescription("Log channel").addChannelTypes(ChannelType.GuildText).setRequired(true),
+        o
+          .setName("channel")
+          .setDescription("Log channel")
+          .addChannelTypes(ChannelType.GuildText)
+          .setRequired(true),
       ),
   )
-  .addSubcommand((sc) => sc.setName("mod-log-remove").setDescription("Stop logging to the mod log channel"));
+  .addSubcommand((sc) =>
+    sc
+      .setName("mod-log-remove")
+      .setDescription("Stop logging to the mod log channel"),
+  );
 
 export async function execute(i: ChatInputCommandInteraction) {
   if (!i.inGuild()) return;
@@ -44,10 +82,16 @@ export async function execute(i: ChatInputCommandInteraction) {
   const sub = i.options.getSubcommand();
   if (sub === "exempt-add" && channel) {
     addExempt(i.guildId, channel.id);
-    await i.reply({ content: `${channel} is now exempt from scanning.`, flags: "Ephemeral" });
+    await i.reply({
+      content: `${channel} is now exempt from scanning.`,
+      flags: "Ephemeral",
+    });
   } else if (sub === "exempt-remove" && channel) {
     removeExempt(i.guildId, channel.id);
-    await i.reply({ content: `${channel} is no longer exempt.`, flags: "Ephemeral" });
+    await i.reply({
+      content: `${channel} is no longer exempt.`,
+      flags: "Ephemeral",
+    });
   } else if (sub === "exempt-list") {
     const ids = listExempt(i.guildId);
     const list = ids.length ? ids.map((id) => `<#${id}>`).join(", ") : "None";
@@ -55,15 +99,23 @@ export async function execute(i: ChatInputCommandInteraction) {
   } else if (sub === "hate-speech") {
     const enabled = i.options.getBoolean("enabled", true);
     upsertSetting(i.guildId, "hate_speech_enabled", enabled ? 1 : 0);
-    await i.reply({ content: `Hate speech filter ${enabled ? "enabled" : "disabled"}.`, flags: "Ephemeral" });
+    await i.reply({
+      content: `Hate speech filter ${enabled ? "enabled" : "disabled"}.`,
+      flags: "Ephemeral",
+    });
   } else if (sub === "mod-log-channel" && channel) {
     upsertSetting(i.guildId, "mod_log_channel_id", channel.id);
-    await i.reply({ content: `Moderation log channel set to ${channel}.`, flags: "Ephemeral" });
+    await i.reply({
+      content: `Moderation log channel set to ${channel}.`,
+      flags: "Ephemeral",
+    });
   } else if (sub === "mod-log-remove") {
     const previous = getSettings(i.guildId).mod_log_channel_id;
     upsertSetting(i.guildId, "mod_log_channel_id", null);
     await i.reply({
-      content: previous ? `Stopped logging to <#${previous}>.` : "No mod log channel was set.",
+      content: previous
+        ? `Stopped logging to <#${previous}>.`
+        : "No mod log channel was set.",
       flags: "Ephemeral",
     });
   }

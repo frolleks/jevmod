@@ -36,11 +36,20 @@ test("fetchChannelMessages pages through the range and keeps only the user's mes
   } as unknown as TextChannel;
 
   // minutes [100, 350): 250 messages, 125 of them alice's, spanning 3 pages
-  const found = await fetchChannelMessages(channel, "alice", t0 + 100 * 60_000, t0 + 350 * 60_000);
+  const found = await fetchChannelMessages(
+    channel,
+    "alice",
+    t0 + 100 * 60_000,
+    t0 + 350 * 60_000,
+  );
   expect(found.length).toBe(125);
   expect(found.every((m) => m.author.id === "alice")).toBe(true);
-  expect(Math.min(...found.map((m) => m.createdTimestamp))).toBe(t0 + 100 * 60_000);
-  expect(Math.max(...found.map((m) => m.createdTimestamp))).toBe(t0 + 348 * 60_000);
+  expect(Math.min(...found.map((m) => m.createdTimestamp))).toBe(
+    t0 + 100 * 60_000,
+  );
+  expect(Math.max(...found.map((m) => m.createdTimestamp))).toBe(
+    t0 + 348 * 60_000,
+  );
 });
 
 test("transcriptPage shows 10 per page, clamps the page, and fits Discord's embed limits", () => {
@@ -62,9 +71,13 @@ test("transcriptPage shows 10 per page, clamps the page, and fits Discord's embe
   const last = transcriptPage(entries, 99); // past the end clamps to page 3
   expect(last.embeds[0]!.toJSON().fields).toHaveLength(5);
   expect(last.embeds[0]!.toJSON().footer?.text).toStartWith("Page 3/3");
-  const [prev, next] = last.components[0]!.toJSON().components as { disabled?: boolean }[];
+  const [prev, next] = last.components[0]!.toJSON().components as {
+    disabled?: boolean;
+  }[];
   expect(prev!.disabled).toBe(false);
   expect(next!.disabled).toBe(true);
 
-  expect(transcriptPage(entries, Number.NaN).embeds[0]!.toJSON().footer?.text).toStartWith("Page 1/3");
+  expect(
+    transcriptPage(entries, Number.NaN).embeds[0]!.toJSON().footer?.text,
+  ).toStartWith("Page 1/3");
 });

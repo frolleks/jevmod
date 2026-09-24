@@ -11,10 +11,14 @@ import { logToMod } from "../utils/moderation";
 
 export const data = new SlashCommandBuilder()
   .setName("pardon")
-  .setDescription("Stop counting a member's latest violation and lift their timeout")
+  .setDescription(
+    "Stop counting a member's latest violation and lift their timeout",
+  )
   .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
   .setContexts(InteractionContextType.Guild)
-  .addUserOption((o) => o.setName("user").setDescription("Who to pardon").setRequired(true));
+  .addUserOption((o) =>
+    o.setName("user").setDescription("Who to pardon").setRequired(true),
+  );
 
 export async function execute(i: ChatInputCommandInteraction) {
   if (!i.inCachedGuild()) return;
@@ -22,7 +26,9 @@ export async function execute(i: ChatInputCommandInteraction) {
   await i.deferReply({ flags: "Ephemeral" });
   const remaining = decrementViolations(i.guildId, user.id);
   // force: without the GuildMembers intent, the cached timeout state can be stale
-  const member = await i.guild.members.fetch({ user: user.id, force: true }).catch(() => null);
+  const member = await i.guild.members
+    .fetch({ user: user.id, force: true })
+    .catch(() => null);
   let timeout: "none" | "lifted" | "failed" = "none";
   if (member?.isCommunicationDisabled()) {
     timeout = await member.timeout(null, `Pardoned by ${i.user.tag}`).then(
@@ -31,7 +37,9 @@ export async function execute(i: ChatInputCommandInteraction) {
     );
   }
   if (remaining === null && timeout === "none") {
-    return void (await i.editReply(`Nothing to pardon: ${user} has no violations on record and isn't timed out.`));
+    return void (await i.editReply(
+      `Nothing to pardon: ${user} has no violations on record and isn't timed out.`,
+    ));
   }
 
   const result = [
@@ -41,7 +49,9 @@ export async function execute(i: ChatInputCommandInteraction) {
   ];
   if (timeout === "lifted") result.push("Their timeout was lifted.");
   if (timeout === "failed") {
-    result.push("Couldn't lift their timeout; the bot needs Moderate Members and a role above theirs.");
+    result.push(
+      "Couldn't lift their timeout; the bot needs Moderate Members and a role above theirs.",
+    );
   }
   await i.editReply(result.join("\n"));
 
@@ -50,7 +60,9 @@ export async function execute(i: ChatInputCommandInteraction) {
   if (timeout === "lifted") undone.push("your timeout has been lifted");
   if (undone.length) {
     await user
-      .send(`A moderator in **${i.guild.name}** pardoned you: ${undone.join(" and ")}.`)
+      .send(
+        `A moderator in **${i.guild.name}** pardoned you: ${undone.join(" and ")}.`,
+      )
       .catch(() => {}); // DMs may be closed
   }
 

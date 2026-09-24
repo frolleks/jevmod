@@ -1,4 +1,10 @@
-import { ActivityType, Client, Events, GatewayIntentBits, PermissionFlagsBits } from "discord.js";
+import {
+  ActivityType,
+  Client,
+  Events,
+  GatewayIntentBits,
+  PermissionFlagsBits,
+} from "discord.js";
 import {
   addExempt,
   getSettings,
@@ -10,7 +16,12 @@ import {
   setTimeoutConfig,
   upsertSetting,
 } from "./utils/db";
-import { buildHelpText, helpCommand, reportCommand, settingsCommand } from "./utils/commands";
+import {
+  buildHelpText,
+  helpCommand,
+  reportCommand,
+  settingsCommand,
+} from "./utils/commands";
 import { judge, scoreHateSpeech } from "./utils/jev";
 import { pushHistory } from "./utils/history";
 import { logToMod, recordViolation } from "./utils/moderation";
@@ -51,32 +62,59 @@ client.once(Events.ClientReady, async (c) => {
 client.on(Events.InteractionCreate, async (i) => {
   if (i.isButton() && i.customId.startsWith("report-page:")) {
     const entries = getTranscript(i.channelId);
-    if (!entries) return void (await i.reply({ content: "This transcript is no longer available.", ephemeral: true }));
-    return void (await i.update(transcriptPage(entries, Number(i.customId.split(":")[1]))));
+    if (!entries)
+      return void (await i.reply({
+        content: "This transcript is no longer available.",
+        flags: "Ephemeral",
+      }));
+    return void (await i.update(
+      transcriptPage(entries, Number(i.customId.split(":")[1])),
+    ));
   }
 
   if (!i.isChatInputCommand()) return;
 
   if (i.commandName === "ping") return void (await i.reply("Pong"));
 
-  if (i.commandName === "help") return void (await i.reply({ content: buildHelpText(), ephemeral: true }));
+  if (i.commandName === "help")
+    return void (await i.reply({
+      content: buildHelpText(),
+      flags: "Ephemeral",
+    }));
 
   if (i.commandName === "report" && i.inCachedGuild()) {
     const target = i.options.getUser("user", true);
     const type = i.options.getString("type", true);
-    const range = parseRange(i.options.getString("from", true), i.options.getString("to"));
-    if (typeof range === "string") return void (await i.reply({ content: range, ephemeral: true }));
+    const range = parseRange(
+      i.options.getString("from", true),
+      i.options.getString("to"),
+    );
+    if (typeof range === "string")
+      return void (await i.reply({ content: range, flags: "Ephemeral" }));
     // has() also passes for Administrator
-    if (!i.memberPermissions.has(PermissionFlagsBits.ManageGuild) && onCooldown(`${i.guildId}:${i.user.id}`)) {
-      return void (await i.reply({ content: "You can file one report every 5 minutes.", ephemeral: true }));
+    if (
+      !i.memberPermissions.has(PermissionFlagsBits.ManageGuild) &&
+      onCooldown(`${i.guildId}:${i.user.id}`)
+    ) {
+      return void (await i.reply({
+        content: "You can file one report every 5 minutes.",
+        flags: "Ephemeral",
+      }));
     }
 
-    await i.deferReply({ ephemeral: true });
-    const ticket = await createTicket(i.guild, i.member, `report-${target.username.replace(/[^a-z0-9_-]/g, "")}`).catch((e) => {
+    await i.deferReply({ flags: "Ephemeral" });
+    const ticket = await createTicket(
+      i.guild,
+      i.member,
+      `report-${target.username.replace(/[^a-z0-9_-]/g, "")}`,
+    ).catch((e) => {
       console.error("ticket creation failed", e);
       return null;
     });
-    if (!ticket) return void (await i.editReply("Couldn't open a ticket; the bot needs the Manage Channels permission."));
+    if (!ticket)
+      return void (await i.editReply(
+        "Couldn't open a ticket; the bot needs the Manage Channels permission.",
+      ));
 
     const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
     await ticket.send({
@@ -92,13 +130,24 @@ client.on(Events.InteractionCreate, async (i) => {
     await logToMod(i.guild, `New report ticket: ${ticket}`);
 
     try {
-      const messages = await fetchUserMessages(i.guild, i.member, target.id, range.start, range.end);
-      if (!messages.length) return void (await ticket.send("No messages from this user in that range to analyze."));
+      const messages = await fetchUserMessages(
+        i.guild,
+        i.member,
+        target.id,
+        range.start,
+        range.end,
+      );
+      if (!messages.length)
+        return void (await ticket.send(
+          "No messages from this user in that range to analyze.",
+        ));
       const entries = toTranscript(messages);
       saveTranscript(ticket.id, entries);
       await ticket.send(transcriptPage(entries, 0));
       const score = await scoreHateSpeech(entries.map((e) => e.content));
-      await ticket.send(`Jev hate speech confidence across ${messages.length} messages: **${Math.round(score * 100)}%**`);
+      await ticket.send(
+        `Jev hate speech confidence across ${messages.length} messages: **${Math.round(score * 100)}%**`,
+      );
     } catch (e) {
       console.error("report analysis failed", e);
       await ticket.send("Automatic analysis failed; please review manually.");
@@ -113,30 +162,33 @@ client.on(Events.InteractionCreate, async (i) => {
       addExempt(i.guildId, channel.id);
       await i.reply({
         content: `${channel} is now exempt from scanning.`,
-        ephemeral: true,
+        flags: "Ephemeral",
       });
     } else if (sub === "exempt-remove" && channel) {
       removeExempt(i.guildId, channel.id);
       await i.reply({
         content: `${channel} is no longer exempt.`,
-        ephemeral: true,
+        flags: "Ephemeral",
       });
     } else if (sub === "exempt-list") {
       const ids = listExempt(i.guildId);
       const list = ids.length ? ids.map((id) => `<#${id}>`).join(", ") : "None";
-      await i.reply({ content: `Exempt channels: ${list}`, ephemeral: true });
+      await i.reply({
+        content: `Exempt channels: ${list}`,
+        flags: "Ephemeral",
+      });
     } else if (sub === "hate-speech") {
       const enabled = i.options.getBoolean("enabled", true);
       upsertSetting(i.guildId, "hate_speech_enabled", enabled ? 1 : 0);
       await i.reply({
         content: `Hate speech filter ${enabled ? "enabled" : "disabled"}.`,
-        ephemeral: true,
+        flags: "Ephemeral",
       });
     } else if (sub === "mod-log-channel" && channel) {
       upsertSetting(i.guildId, "mod_log_channel_id", channel.id);
       await i.reply({
         content: `Moderation log channel set to ${channel}.`,
-        ephemeral: true,
+        flags: "Ephemeral",
       });
     } else if (sub === "timeout-config") {
       const threshold = i.options.getInteger("threshold", true);
@@ -144,7 +196,7 @@ client.on(Events.InteractionCreate, async (i) => {
       setTimeoutConfig(i.guildId, threshold, minutes);
       await i.reply({
         content: `Auto-timeout: ${threshold} violations → ${minutes}m timeout.`,
-        ephemeral: true,
+        flags: "Ephemeral",
       });
     }
   }
@@ -164,7 +216,8 @@ client.on(Events.MessageCreate, async (m) => {
       guild_joined_at: m.member?.joinedAt?.toISOString() ?? null,
       recent_messages: history.map((h) => h.content),
     });
-    const pct = (p: number | null) => (p === null ? "n/a" : `${Math.round(p * 100)}%`);
+    const pct = (p: number | null) =>
+      p === null ? "n/a" : `${Math.round(p * 100)}%`;
 
     if (settings.hate_speech_enabled && hateLevel === "remove") {
       await m.delete();
